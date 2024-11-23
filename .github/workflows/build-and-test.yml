@@ -1,10 +1,7 @@
 name: Build & Test
+on: pull_request
 
-on:
-  pull_request:
-    branches:
-      - '*'
-
+# Uncomment this and the section below for .NET 9 support, as this is not included by default on ubuntu-latest currently
 #env:
 #  DOTNET_VERSION: '9.0.x'
 
