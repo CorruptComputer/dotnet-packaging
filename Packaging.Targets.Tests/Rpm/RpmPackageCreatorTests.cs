@@ -140,6 +140,41 @@ namespace Packaging.Targets.Tests.Rpm
             }
         }
 
+        private static Collection<RpmFile> LoadFilesFromRpmPackage(RpmPackage originalPackage, RpmPackageCreator creator)
+        {
+            using Stream payloadStream = RpmPayloadReader.GetDecompressedPayloadStream(originalPackage);
+            using CpioFile cpio = new(payloadStream, false);
+
+            ArchiveBuilder builder = new(new PlistFileAnalyzer());
+            List<ArchiveEntry> entries = builder.FromCpio(cpio);
+            return creator.CreateFiles(entries);
+        }
+
+        private static void PopulateRpmPackageMetadata(RpmPackage package, RpmPackageCreator creator, Collection<RpmFile> files)
+        {
+            PublicRpmMetadata metadata = new(package)
+            {
+                Name = "libplist",
+                Version = "2.0.1.151",
+                Arch = "x86_64",
+                Release = "1.1"
+            };
+
+            creator.AddPackageProvides(metadata);
+            creator.AddLdDependencies(metadata);
+
+            metadata.Files = files;
+            creator.AddRpmDependencies(metadata, null);
+
+            PlistMetadata.ApplyDefaultMetadata(metadata);
+
+            metadata.Vendor = "obs://build.opensuse.org/home:qmfrederik";
+            metadata.Description = "libplist is a library for manipulating Apple Binary and XML Property Lists";
+            metadata.Url = "http://www.libimobiledevice.org/";
+
+            creator.CalculateHeaderOffsets(package);
+        }
+
         [Fact]
         public void CalculateSignatureTest()
         {
@@ -148,37 +183,11 @@ namespace Packaging.Targets.Tests.Rpm
                 var originalPackage = RpmPackageReader.Read(stream);
 
                 RpmPackageCreator creator = new RpmPackageCreator(new PlistFileAnalyzer());
-                Collection<RpmFile> files;
-
-                using (var payloadStream = RpmPayloadReader.GetDecompressedPayloadStream(originalPackage))
-                using (var cpio = new CpioFile(payloadStream, false))
-                {
-                    ArchiveBuilder builder = new ArchiveBuilder(new PlistFileAnalyzer());
-                    var entries = builder.FromCpio(cpio);
-                    files = creator.CreateFiles(entries);
-                }
+                Collection<RpmFile> files = LoadFilesFromRpmPackage(originalPackage, creator);
 
                 // Core routine to populate files and dependencies
                 RpmPackage package = new RpmPackage();
-                var metadata = new PublicRpmMetadata(package);
-                metadata.Name = "libplist";
-                metadata.Version = "2.0.1.151";
-                metadata.Arch = "x86_64";
-                metadata.Release = "1.1";
-
-                creator.AddPackageProvides(metadata);
-                creator.AddLdDependencies(metadata);
-
-                metadata.Files = files;
-                creator.AddRpmDependencies(metadata, null);
-
-                PlistMetadata.ApplyDefaultMetadata(metadata);
-
-                metadata.Vendor = "obs://build.opensuse.org/home:qmfrederik";
-                metadata.Description = "libplist is a library for manipulating Apple Binary and XML Property Lists";
-                metadata.Url = "http://www.libimobiledevice.org/";
-
-                creator.CalculateHeaderOffsets(package);
+                PopulateRpmPackageMetadata(package, creator, files);
 
                 // Make sure the header is really correct
                 using (Stream originalHeaderStream = new SubStream(
