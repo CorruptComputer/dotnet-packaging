@@ -1,6 +1,7 @@
 ﻿using Org.BouncyCastle.Bcpg.OpenPgp;
 using Packaging.Targets.IO;
 using Packaging.Targets.Rpm;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -199,10 +200,10 @@ namespace Packaging.Targets.Tests.Rpm
                 using (Stream headerStream = creator.GetHeaderStream(package))
                 {
                     byte[] originalData = new byte[originalHeaderStream.Length];
-                    originalHeaderStream.Read(originalData, 0, originalData.Length);
+                    originalHeaderStream.ReadExactly(originalData, 0, originalData.Length);
 
                     byte[] data = new byte[headerStream.Length];
-                    headerStream.Read(data, 0, data.Length);
+                    headerStream.ReadExactly(data, 0, data.Length);
 
                     int delta = 0;
                     int dataDelta = 0;
@@ -418,8 +419,8 @@ namespace Packaging.Targets.Tests.Rpm
 
                 while (originalStream.Position < originalStream.Length)
                 {
-                    originalStream.Read(originalBuffer, 0, originalBuffer.Length);
-                    targetStream.Read(targetBuffer, 0, targetBuffer.Length);
+                    originalStream.ReadExactly(originalBuffer, 0, Math.Min(originalBuffer.Length, (int)(originalStream.Length - originalStream.Position)));
+                    targetStream.ReadExactly(targetBuffer, 0, Math.Min(targetBuffer.Length, (int)(targetStream.Length - targetStream.Position)));
 
                     Assert.Equal(originalBuffer, targetBuffer);
 
